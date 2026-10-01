@@ -1,3 +1,4 @@
+```jsx
 import { NavLink } from 'react-router-dom';
 
 const icons = {
@@ -126,25 +127,6 @@ const icons = {
       <path d="M9 13h6" />
     </svg>
   ),
-
-  messages: (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-      <path d="M21 14l-3 -3h-7a1 1 0 0 1 -1 -1v-6a1 1 0 0 1 1 -1h9a1 1 0 0 1 1 1v10" />
-      <path d="M14 15v2a1 1 0 0 1 -1 1h-7l-3 3v-10a1 1 0 0 1 1 -1h2" />
-    </svg>
-  ),
 };
 
 const links = [
@@ -159,19 +141,15 @@ const links = [
 export default function Sidebar() {
   return (
     <aside className="w-60 bg-navy-950 text-slate-300 flex flex-col shrink-0">
-
-      {/* HEADER SIDEBAR */}
       <div className="px-5 py-5 border-b border-navy-800">
         <p className="text-white font-bold text-lg leading-tight">
-          Admin Payroll 
+          Payroll Admin
         </p>
-
         <p className="text-xs text-slate-400 mt-0.5">
           Manajemen Gaji Karyawan
         </p>
       </div>
 
-      {/* MENU */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {links.map((link) => (
           <NavLink
@@ -198,30 +176,10 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* CONTACT SERVICES */}
-      <div className="px-5 py-4 border-t border-navy-800">
-        <div className="flex items-start gap-3 text-slate-400">
-
-          <span
-            aria-hidden="true"
-            className="w-6 h-6 shrink-0 flex items-center justify-center text-slate-400"
-          >
-            {icons.messages}
-          </span>
-
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-slate-400">
-              Contact Services
-            </p>
-
-            <p className="text-xs text-slate-500 mt-0.5 break-all">
-              Youungla@gmail.com
-            </p>
-          </div>
-
-        </div>
+      <div className="px-5 py-4 border-t border-navy-800 text-xs text-slate-500">
+        v1.0 &middot; Data gaji bersifat rahasia
       </div>
-
     </aside>
   );
 }
+```

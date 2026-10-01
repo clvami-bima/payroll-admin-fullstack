@@ -1,15 +1,38 @@
 const express = require('express');
+
 const {
-  listByEmployee, createComponent, updateComponent, deleteComponent,
+  listSalaryComponents,
+  getSalaryComponent,
+  createSalaryComponent,
+  updateSalaryComponent,
+  deleteSalaryComponent
 } = require('../controllers/salaryComponentController');
-const { requireAuth } = require('../middleware/auth');
+
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
+
 router.use(requireAuth);
 
-router.get('/employee/:employeeId', listByEmployee);
-router.post('/employee/:employeeId', createComponent);
-router.put('/:id', updateComponent);
-router.delete('/:id', deleteComponent);
+router.get('/', listSalaryComponents);
+router.get('/:id', getSalaryComponent);
+
+router.post(
+  '/',
+  requireRole('admin'),
+  createSalaryComponent
+);
+
+router.put(
+  '/:id',
+  requireRole('admin'),
+  updateSalaryComponent
+);
+
+router.delete(
+  '/:id',
+  requireRole('admin'),
+  deleteSalaryComponent
+);
 
 module.exports = router;

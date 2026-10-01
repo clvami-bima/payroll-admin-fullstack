@@ -11,8 +11,10 @@ on:
 
 jobs:
   test:
+    name: Fullstack Playwright Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+
+    timeout-minutes: 20
 
     steps:
       # ==========================================
@@ -27,28 +29,28 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             frontend/package-lock.json
             backend/package-lock.json
 
       # ==========================================
-      # INSTALL BACKEND
+      # BACKEND DEPENDENCIES
       # ==========================================
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
       # ==========================================
-      # INSTALL FRONTEND
+      # FRONTEND DEPENDENCIES
       # ==========================================
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
       # ==========================================
-      # INSTALL PLAYWRIGHT
+      # PLAYWRIGHT
       # ==========================================
       - name: Install Playwright browsers
         working-directory: frontend
@@ -63,36 +65,47 @@ jobs:
 
       # ==========================================
       # START BACKEND
+      # Backend project listens on PORT 4000
       # ==========================================
       - name: Start backend
         working-directory: backend
         run: |
           nohup npm start > backend.log 2>&1 &
           echo $! > backend.pid
-          sleep 5
-          cat backend.log
 
-      # ==========================================
-      # CHECK BACKEND
-      # ==========================================
-      - name: Check backend
-        run: |
-          echo "Checking backend..."
+          echo "Menunggu backend..."
 
           for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:3000/ > /dev/null 2>&1; then
-              echo "Backend is running."
-              exit 0
+            if curl -sS --max-time 3 http://127.0.0.1:4000/ > /dev/null 2>&1; then
+              echo "Backend berhasil hidup di port 4000."
+              break
             fi
 
             echo "Waiting for backend... ($i/30)"
             sleep 2
           done
 
-          echo "Backend failed to start."
+          echo ""
           echo "===== BACKEND LOG ====="
-          cat backend/backend.log || true
-          exit 1
+          cat backend.log
+
+      # ==========================================
+      # VERIFY BACKEND
+      # ==========================================
+      - name: Verify backend
+        working-directory: backend
+        run: |
+          echo "Checking backend on port 4000..."
+
+          if curl -sS --max-time 5 http://127.0.0.1:4000/ > /dev/null 2>&1; then
+            echo "Backend OK."
+          else
+            echo "Backend tidak merespons."
+            echo ""
+            echo "===== BACKEND LOG ====="
+            cat backend.log || true
+            exit 1
+          fi
 
       # ==========================================
       # START FRONTEND
@@ -105,11 +118,12 @@ jobs:
 
           sleep 5
 
+          echo ""
           echo "===== FRONTEND LOG ====="
           cat frontend.log
 
       # ==========================================
-      # CHECK FRONTEND
+      # WAIT FOR FRONTEND
       # ==========================================
       - name: Wait for frontend
         working-directory: frontend
@@ -119,22 +133,25 @@ jobs:
             --interval 1000 \
             http://127.0.0.1:5173/login
 
-          echo "Frontend berhasil hidup."
+          echo ""
+          echo "Frontend berhasil hidup di port 5173."
 
+          echo ""
           echo "===== FRONTEND LOG ====="
           cat frontend.log
 
       # ==========================================
-      # RUN PLAYWRIGHT
+      # PLAYWRIGHT TESTS
       # ==========================================
       - name: Run Playwright tests
         working-directory: frontend
         env:
           CI: true
-        run: npx playwright test
+        run: |
+          npx playwright test
 
       # ==========================================
-      # SHOW LOGS IF FAILED
+      # SHOW LOGS IF FAILURE
       # ==========================================
       - name: Show server logs
         if: failure()
@@ -161,10 +178,11 @@ jobs:
         with:
           name: playwright-report
           path: frontend/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
       # ==========================================
-      # PLAYWRIGHT TEST RESULTS
+      # PLAYWRIGHT RESULTS
       # ==========================================
       - name: Upload Playwright test results
         if: always()
@@ -172,6 +190,7 @@ jobs:
         with:
           name: playwright-test-results
           path: frontend/test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
       # ==========================================
@@ -185,4 +204,5 @@ jobs:
           path: |
             backend/backend.log
             frontend/frontend.log
+          if-no-files-found: ignore
           retention-days: 7

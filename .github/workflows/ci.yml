@@ -12,197 +12,137 @@ on:
 jobs:
   test:
     name: Fullstack Playwright Tests
+
     runs-on: ubuntu-latest
 
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     steps:
-      # ==========================================
-      # CHECKOUT
-      # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ==========================================
-      # NODE.JS
-      # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
           cache-dependency-path: |
             frontend/package-lock.json
             backend/package-lock.json
 
       # ==========================================
-      # BACKEND DEPENDENCIES
+      # BACKEND
       # ==========================================
+
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
+      - name: Start backend
+        working-directory: backend
+        shell: bash
+        run: |
+          nohup npm run dev > backend.log 2>&1 &
+          echo $! > backend.pid
+
+      - name: Verify backend
+        shell: bash
+        run: |
+          echo "Waiting for backend..."
+
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:3000 > /dev/null; then
+              echo "Backend is ready!"
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Backend failed to start."
+          cat backend/backend.log
+          exit 1
+
       # ==========================================
-      # FRONTEND DEPENDENCIES
+      # FRONTEND
       # ==========================================
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      # ==========================================
-      # PLAYWRIGHT
-      # ==========================================
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      # ==========================================
-      # BUILD FRONTEND
-      # ==========================================
-      - name: Build frontend
+      - name: Start frontend
         working-directory: frontend
-        run: npm run build
-
-      # ==========================================
-      # START BACKEND
-      # Backend project listens on PORT 4000
-      # ==========================================
-      - name: Start backend
-        working-directory: backend
+        shell: bash
         run: |
-          nohup npm start > backend.log 2>&1 &
-          echo $! > backend.pid
+          nohup npm run dev -- --host 127.0.0.1 > frontend.log 2>&1 &
+          echo $! > frontend.pid
 
-          echo "Menunggu backend..."
+      - name: Wait for frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          echo "Waiting for frontend..."
 
           for i in {1..30}; do
-            if curl -sS --max-time 3 http://127.0.0.1:4000/ > /dev/null 2>&1; then
-              echo "Backend berhasil hidup di port 4000."
-              break
+            if curl -s http://127.0.0.1:5173 > /dev/null; then
+              echo "Frontend is ready!"
+              exit 0
             fi
 
-            echo "Waiting for backend... ($i/30)"
             sleep 2
           done
 
-          echo ""
-          echo "===== BACKEND LOG ====="
-          cat backend.log
-
-      # ==========================================
-      # VERIFY BACKEND
-      # ==========================================
-      - name: Verify backend
-        working-directory: backend
-        run: |
-          echo "Checking backend on port 4000..."
-
-          if curl -sS --max-time 5 http://127.0.0.1:4000/ > /dev/null 2>&1; then
-            echo "Backend OK."
-          else
-            echo "Backend tidak merespons."
-            echo ""
-            echo "===== BACKEND LOG ====="
-            cat backend.log || true
-            exit 1
-          fi
-
-      # ==========================================
-      # START FRONTEND
-      # ==========================================
-      - name: Start frontend
-        working-directory: frontend
-        run: |
-          nohup npm run dev -- --host 0.0.0.0 > frontend.log 2>&1 &
-          echo $! > frontend.pid
-
-          sleep 5
-
-          echo ""
-          echo "===== FRONTEND LOG ====="
+          echo "Frontend failed to start."
           cat frontend.log
+          exit 1
 
       # ==========================================
-      # WAIT FOR FRONTEND
+      # PLAYWRIGHT
       # ==========================================
-      - name: Wait for frontend
-        working-directory: frontend
-        run: |
-          npx wait-on \
-            --timeout 120000 \
-            --interval 1000 \
-            http://127.0.0.1:5173/login
 
-          echo ""
-          echo "Frontend berhasil hidup di port 5173."
-
-          echo ""
-          echo "===== FRONTEND LOG ====="
-          cat frontend.log
-
-      # ==========================================
-      # PLAYWRIGHT TESTS
-      # ==========================================
       - name: Run Playwright tests
         working-directory: frontend
         env:
           CI: true
-        run: |
-          npx playwright test
+        run: npx playwright test
 
       # ==========================================
-      # SHOW LOGS IF FAILURE
+      # ARTIFACTS
       # ==========================================
-      - name: Show server logs
-        if: failure()
-        run: |
-          echo "=========================================="
-          echo "BACKEND LOG"
-          echo "=========================================="
 
-          cat backend/backend.log || true
-
-          echo ""
-          echo "=========================================="
-          echo "FRONTEND LOG"
-          echo "=========================================="
-
-          cat frontend/frontend.log || true
-
-      # ==========================================
-      # PLAYWRIGHT REPORT
-      # ==========================================
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: frontend/playwright-report/
-          if-no-files-found: ignore
           retention-days: 7
 
-      # ==========================================
-      # PLAYWRIGHT RESULTS
-      # ==========================================
       - name: Upload Playwright test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-test-results
           path: frontend/test-results/
-          if-no-files-found: ignore
           retention-days: 7
 
-      # ==========================================
-      # SERVER LOGS
-      # ==========================================
-      - name: Upload server logs
+      - name: Upload backend log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: server-logs
-          path: |
-            backend/backend.log
-            frontend/frontend.log
-          if-no-files-found: ignore
+          name: backend-log
+          path: backend/backend.log
+          retention-days: 7
+
+      - name: Upload frontend log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-log
+          path: frontend/frontend.log
           retention-days: 7
